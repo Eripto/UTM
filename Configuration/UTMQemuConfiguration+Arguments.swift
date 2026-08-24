@@ -506,6 +506,10 @@ import Virtualization // for getting network interfaces
     private var isHypervisorUsed: Bool {
         system.architecture.hasHypervisorSupport && qemu.hasHypervisor
     }
+
+    private var isMulticoreTcgUsed: Bool {
+        system.isForceMulticore && emulatedCpuCount.1 > 1
+    }
     
     private var isTSOUsed: Bool {
         system.architecture.hasTSOSupport && qemu.hasTSO
@@ -536,7 +540,7 @@ import Virtualization // for getting network interfaces
         } else {
             f("-accel")
             "tcg"
-            if system.isForceMulticore {
+            if isMulticoreTcgUsed {
                 "thread=multi"
             }
             let tbSize = system.jitCacheSize > 0 ? system.jitCacheSize : system.memorySize / 4
