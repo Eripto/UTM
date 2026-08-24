@@ -1,0 +1,74 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUILD_XCODE_PATH: /Applications/Xcode_26.0.app
+
+jobs:
+  build-ios-ipa:
+    name: Build iOS IPA
+    runs-on: macos-15
+    timeout-minutes: 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Xcode
+        shell: bash
+        run: |
+          [[ "$(xcode-select -p)" == "$BUILD_XCODE_PATH"* ]] || sudo xcode-select -s "$BUILD_XCODE_PATH"
+
+      - name: Restore iOS sysroot
+        id: cache-sysroot
+        uses: actions/cache/restore@v4
+        with:
+          path: ./sysroot-ios-arm64
+          key: ios-arm64-${{ hashFiles('scripts/build_dependencies.sh') }}-${{ hashFiles('patches/**') }}-${{ github.sha }}
+          restore-keys: ios-arm64-${{ hashFiles('scripts/build_dependencies.sh') }}-${{ hashFiles('patches/**') }}
+
+      - name: Install build requirements
+        if: steps.cache-sysroot.outputs.cache-matched-key == ''
+        shell: bash
+        run: |
+          echo "/usr/local/opt/bison/bin:/opt/homebrew/opt/bison/bin" >> "$GITHUB_PATH"
+          brew uninstall cmake || true
+          brew install bison pkg-config gettext glib-utils libgpg-error nasm make meson cmake
+          brew install llvm spirv-llvm-translator libxcb libxrandr
+          pip3 install --break-system-packages --user six pyparsing pyyaml setuptools distlib mako
+          rm -f /usr/local/lib/pkgconfig/*.pc
+
+      - name: Build iOS sysroot
+        if: steps.cache-sysroot.outputs.cache-matched-key == ''
+        run: ./scripts/build_dependencies.sh -p ios -a arm64
+        env:
+          NCPU: 0
+
+      - name: Save iOS sysroot
+        if: steps.cache-sysroot.outputs.cache-matched-key == ''
+        uses: actions/cache/save@v4
+        with:
+          path: ./sysroot-ios-arm64
+          key: ${{ steps.cache-sysroot.outputs.cache-primary-key }}
+
+      - name: Build UTM
+        run: ./scripts/build_utm.sh -k iphoneos -s iOS -a arm64 -o UTM
+
+      - name: Package unsigned IPA
+        shell: bash
+        run: |
+          brew install ldid
+          ./scripts/package.sh ipa UTM.xcarchive .
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: UTM-iOS-JIT
+          path: UTM.ipa
+          if-no-files-found: error
