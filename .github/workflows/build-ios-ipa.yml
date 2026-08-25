@@ -40,7 +40,8 @@ jobs:
           echo "/usr/local/opt/bison/bin:/opt/homebrew/opt/bison/bin" >> "$GITHUB_PATH"
           brew uninstall cmake || true
           brew install bison pkg-config gettext glib-utils libgpg-error nasm make meson cmake
-          brew install llvm spirv-llvm-translator libxcb libxrandr
+          brew install llvm spirv-llvm-translator libclc libxcb libxrandr
+          pkg-config --print-errors --exists libclc
           pip3 install --break-system-packages --user six pyparsing pyyaml setuptools distlib mako
           rm -f /usr/local/lib/pkgconfig/*.pc
 
