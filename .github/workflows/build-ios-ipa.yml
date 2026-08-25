@@ -56,7 +56,7 @@ jobs:
         if: steps.cache-sysroot.outputs.cache-matched-key == ''
         uses: actions/cache/save@v4
         with:
-          path: ./sysroot-ios-arm64
+          path: ./sysroot-iOS-arm64
           key: ${{ steps.cache-sysroot.outputs.cache-primary-key }}
 
       - name: Build UTM

@@ -177,6 +177,20 @@ clone () {
     retry git -C "$DIR" submodule update --init --recursive --filter=tree:0
 }
 
+apply_git_patch () {
+    DIR="$1"
+    PATCH="$2"
+    if git -C "$DIR" apply --check "$PATCH"; then
+        echo "${GREEN}Applying $(basename "$PATCH")...${NC}"
+        git -C "$DIR" apply "$PATCH"
+    elif git -C "$DIR" apply --reverse --check "$PATCH"; then
+        echo "${GREEN}$(basename "$PATCH") already applied.${NC}"
+    else
+        echo >&2 "${RED}Cannot apply $(basename "$PATCH") to $DIR.${NC}"
+        exit 1
+    fi
+}
+
 clone_moltenvk_dependences () {
     REPO="$1"
     NAME="$(basename $REPO)"
@@ -227,6 +241,8 @@ download_all () {
     clone $HYPERVISOR_REPO $HYPERVISOR_COMMIT
     clone $LIBUCONTEXT_REPO $LIBUCONTEXT_COMMIT
     clone $MESA_REPO $MESA_COMMIT
+    # Backport Mesa's LLVM 22 compatibility fixes to the pinned iOS fork.
+    apply_git_patch "$BUILD_DIR/mesa.git" "$PATCHES_DIR/mesa-llvm22.patch"
     clone $MOLTENVK_REPO $MOLTENVK_COMMIT
     clone_moltenvk_dependences $MOLTENVK_REPO
     download $LLVM15_SRC
